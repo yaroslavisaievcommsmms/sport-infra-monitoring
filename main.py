@@ -1,16 +1,15 @@
 import os
 import urllib.parse
 import feedparser
-from datetime import datetime
-import google.generativeai as genai
+from google import genai
 
-# 1. Налаштування Gemini API
+# 1. Налаштування Gemini API (використовуємо новий SDK)
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_KEY:
     print("Помилка: GEMINI_API_KEY не знайдено в Secrets.")
     exit(1)
 
-genai.configure(api_key=GEMINI_KEY)
+client = genai.Client(api_key=GEMINI_KEY)
 
 # 2. Пошукові запити для Google News RSS
 SEARCH_QUERIES = [
@@ -44,8 +43,6 @@ def analyze_with_gemini(articles):
     if not articles:
         return "За останню добу новин за пошуковими запитами не знайдено."
 
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    
     prompt = f"""
     Ти аналітик, який збирає інформацію про пошкодження спортивної інфраструктури в Україні внаслідок війни.
     Нижче наведено список новин. Твоє завдання:
@@ -65,7 +62,10 @@ def analyze_with_gemini(articles):
     for idx, item in enumerate(articles, 1):
         prompt += f"\n{idx}. Заголовок: {item['title']}\n   Посилання: {item['link']}\n"
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
     return response.text
 
 if __name__ == "__main__":

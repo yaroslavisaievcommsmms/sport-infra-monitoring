@@ -35,7 +35,7 @@ SEARCH_QUERIES = [
     'спортшкола OR ДЮСШ OR арена "внаслідок атаки" OR "ракетного обстрілу"'
 ]
 
-# 3. Список Telegram-каналів для моніторингу (Оновлений список із 145 каналів)
+# 3. Список Telegram-каналів для моніторингу (145 унікальних каналів)
 TG_CHANNELS = [
     'DonetskaODA', 'ODA_RV', 'Sumy_news_ODA', 'UA_National_Police', 'cherkaskaODA', 
     'cherkassy_live', 'cherkasy_golovne', 'chernigiv_truexa', 'chernigivskaODA', 
@@ -112,7 +112,6 @@ async def get_telegram_posts_async():
                 print(f"Зчитування каналу @{channel}...")
                 async for message in client.iter_messages(channel, limit=15):
                     if message.date and message.date > yesterday and message.text:
-                        # Проста фільтрація за ключовими словами для прискорення
                         text_lower = message.text.lower()
                         keywords = ['стадіон', 'спорт', 'дюсш', 'басейн', 'арена', 'комплекс', 'майданчик']
                         if any(kw in text_lower for kw in keywords):
@@ -130,9 +129,14 @@ async def get_telegram_posts_async():
 
     return posts
 
-def analyze_with_gemini(articles):
+def analyze_with_gemini(articles, tg_count, google_count):
     if not articles:
-        return "За останню добу новин за пошуковими запитами не знайдено."
+        return (
+            "За останню добу новин за пошуковими запитами не знайдено.\n\n"
+            f"📊 **Статистика збору:**\n"
+            f"- Пошук по Google News: опрацьовано матеріалів ({google_count})\n"
+            f"- Пошук по Telegram-каналах: руйнувань не зафіксовано (опрацьовано постів: {tg_count})"
+        )
 
     prompt = f"""
     Ти аналітик, який збирає інформацію про пошкодження спортивної інфраструктури в Україні внаслідок війни.
@@ -145,7 +149,10 @@ def analyze_with_gemini(articles):
        - Короткий опис пошкоджень
        - Посилання на джерело
 
-    Якщо серед новин немає жодного підтвердженого випадку руйнування спортоб'єкта, напиши чітко: "За добу підтверджених новин про руйнування спортивної інфраструктури не знайдено."
+    Якщо серед новин немає жодного підтвердженого випадку руйнування спортоб'єкта, напиши чітко: 
+    "За добу підтверджених новин про руйнування спортивної інфраструктури не знайдено."
+    І обов'язково наприкінці звіту додай рядок:
+    "Пошук по Telegram: руйнувань не зафіксовано" (якщо з Telegram нічого не підтвердилось) або вкажи результати.
 
     Ось масив даних:
     """
@@ -217,7 +224,7 @@ if __name__ == "__main__":
     print(f"\nУсього матеріалів для аналізу: {len(all_sources)}")
     
     print("\nАналіз за допомогою Gemini AI...")
-    report = analyze_with_gemini(all_sources)
+    report = analyze_with_gemini(all_sources, len(tg_posts), len(google_news))
     
     current_time = datetime.now().strftime('%d.%m.%Y о %H:%M')
 

@@ -28,11 +28,13 @@ jobs:
       - name: Run Monitoring Script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py
 
       - name: Commit and Push changes
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          git add index.md
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Оновлено щоденний звіт" && git push)
+          git add index.html
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Оновлено звіт та HTML-лендинг" && git push)

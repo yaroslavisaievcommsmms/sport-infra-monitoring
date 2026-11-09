@@ -2,6 +2,7 @@ import os
 import time
 import urllib.parse
 import feedparser
+from datetime import datetime
 from google import genai
 
 # 1. Налаштування Gemini API
@@ -99,6 +100,19 @@ if __name__ == "__main__":
     
     print("\nАналіз за допомогою Gemini AI...")
     report = analyze_with_gemini(news)
+    
+    # Формуємо вміст для майбутнього сайту
+    site_content = f"""# Моніторинг руйнувань спортивної інфраструктури
+*Останнє оновлення: {datetime.now().strftime('%d.%m.%Y %H:%M')}*
+
+{report}
+"""
+    
+    # Зберігаємо у файл index.md
+    with open("index.md", "w", encoding="utf-8") as file:
+        file.write(site_content)
+        
+    print("\nЗвіт успішно збережено у файл index.md!")
     
     print("\n" + "="*40)
     print("ОТРИМАНИЙ ЗВІТ:")

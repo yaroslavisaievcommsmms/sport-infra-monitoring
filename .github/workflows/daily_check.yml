@@ -5,6 +5,9 @@ on:
     - cron: '0 5 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write # Дозвіл на збереження файлів у репозиторій
+
 jobs:
   run-monitoring:
     runs-on: ubuntu-latest
@@ -26,3 +29,10 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python main.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git add index.md
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Оновлено щоденний звіт" && git push)

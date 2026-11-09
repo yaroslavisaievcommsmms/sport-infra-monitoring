@@ -1,9 +1,10 @@
 import os
+import time
 import urllib.parse
 import feedparser
 from google import genai
 
-# 1. Налаштування Gemini API (використовуємо новий SDK)
+# 1. Налаштування Gemini API
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_KEY:
     print("Помилка: GEMINI_API_KEY не знайдено в Secrets.")
@@ -72,11 +73,24 @@ def analyze_with_gemini(articles):
     for idx, item in enumerate(articles, 1):
         prompt += f"\n{idx}. Заголовок: {item['title']}\n   Посилання: {item['link']}\n"
 
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=prompt,
-    )
-    return response.text
+    # Перебір моделей та спроб
+    for model_name in MODELS:
+        print(f"Пробуємо модель: {model_name}...")
+        for attempt in range(2):  # 2 спроби на кожну модель
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                return response.text
+            except Exception as e:
+                print(f"Помилка {model_name} (спроба {attempt + 1}/2): {e}")
+                if attempt == 0:
+                    print("Чекаємо 60 секунд перед повторною спробою...")
+                    time.sleep(60)
+        print(f"Модель {model_name} не відповідає, переходимо до наступної.\n")
+
+    return "Помилка: Жодна з моделей не змогла згенерувати звіт через перевантаження серверів."
 
 if __name__ == "__main__":
     print("Збір новин з Google News...")

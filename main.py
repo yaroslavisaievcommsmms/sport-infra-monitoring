@@ -63,7 +63,7 @@ def analyze_with_gemini(articles):
         prompt += f"\n{idx}. Заголовок: {item['title']}\n   Посилання: {item['link']}\n"
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.8-flash",
         contents=prompt,
     )
     return response.text

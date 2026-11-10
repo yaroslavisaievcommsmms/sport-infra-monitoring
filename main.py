@@ -67,7 +67,7 @@ TG_CHANNELS = [
     'vinnytskaODA', 'vitalii_glagola', 'volyn_golovne_ua', 'volynblog', 'volynskaODA', 
     'vsim_ua', 'zakarpatskaODA', 'zakarpattia_golovne', 'zakarpattya24', 'zap_golovne', 
     'zaporizhzhia_now', 'zhitomir_news', 'zhytomyr_glvn', 'zhytomyr_info', 
-    'zhytomyrskaODA', 'zoda_gov_ua', 'zp_operativ'
+    'zhytomyrskaODA', 'zoda_gov_ua', 'zp_operativ', 'tekstestya'
 ]
 
 def get_google_news():

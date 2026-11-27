@@ -27,7 +27,7 @@ MODELS = [
 ]
 
 INCIDENTS_FILE = "incidents.json"
-DASHBOARD_URL = "https://yaroslavisaievcommsms.github.io/sport-infra-monitoring/"
+DASHBOARD_URL = "https://yaroslavisaievcommsmms.github.io/sport-infra-monitoring/"
 KYIV_TZ = timezone(timedelta(hours=2))
 RECENT_WINDOW_HOURS = 48  # Сьогодні та вчора (останні 48 годин)
 

@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "date": "Thu, 26 Nov 2026 10:26:18 GMT",
+    "region_city": "Харківська область, м. Харків",
+    "facility": "спорткомплекс «Локомотив»",
+    "description": "Пошкоджено спортивний комплекс «Локомотив» внаслідок ранкової російської атаки.",
+    "source_name": "БудОгляд",
+    "link": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxQNXIxZ1JTOE9vZmpSSVRqN1l6MTRLMG1TSnVwc2stbHRZRVQyamptTEMtaDVmeUo4aXppVWc1VC1PTnBQYko0ZHBtYVFIQ0lLVU5uQ1R0cVl4eXVwUzlhZURaYVBMRTRybEduckRUTVhZZ0hqR0tSVkVVUVI3R2xDVlh3UXg1bTR5T0NKWG9UbENxOTFXNmFzREs4cERrV3V4VTNGaWlGcHRERDhCTUdCQmpSUFIwVHRN?oc=5"
+  },
+  {
+    "date": "Tue, 31 Mar 2026 07:00:00 GMT",
+    "region_city": "Полтавська область, м. Полтава",
+    "facility": "ГРЛ-Арена",
+    "description": "Постраждала «ГРЛ-Арена» внаслідок нічної атаки росіян.",
+    "source_name": "Інтернет-видання «Полтавщина",
+    "link": "https://news.google.com/rss/articles/CBMiREFVX3lxTE9pVlBjTTVnbU5OdHBjOE91T3NLNnRUaHczUmkxVjBBZjJGay12V2doNXRGMTRzUkVJTTI2VHBRTGkxN1JN?oc=5"
+  }
+]

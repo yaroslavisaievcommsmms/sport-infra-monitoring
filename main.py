@@ -27,6 +27,7 @@ MODELS = [
 ]
 
 INCIDENTS_FILE = "incidents.json"
+DASHBOARD_URL = "https://yaroslavisaievcommsms.github.io/sport-infra-monitoring/"
 KYIV_TZ = timezone(timedelta(hours=2))
 RECENT_WINDOW_HOURS = 48  # Сьогодні та вчора (останні 48 годин)
 
@@ -303,10 +304,12 @@ def merge_extra_sources_into_db(existing_incidents: list, extra_sources: list) -
 
 
 def format_telegram_message(recent_incidents: list) -> str:
-    if not recent_incidents:
-        return "Нових пошкоджень не зафіксовано"
+    dashboard_line = f'🌐 <a href="{_escape_html(DASHBOARD_URL)}">Monitoring of Sports Infrastructure Damage</a>'
 
-    lines = ["Знайдено інформацію про руйнування", ""]
+    if not recent_incidents:
+        return f"✅ Нових пошкоджень не зафіксовано\n\n{dashboard_line}"
+
+    lines = ["🚨 Знайдено інформацію про руйнування", ""]
     for idx, inc in enumerate(recent_incidents, 1):
         date_str = _escape_html(inc.get("date", "Дата не вказана"))
         place_str = _escape_html(inc.get("region_city", "Не вказано"))
@@ -324,9 +327,10 @@ def format_telegram_message(recent_incidents: list) -> str:
             lines.append(f'Джерело: <a href="{link}">{source_name}</a>')
         lines.append("")
 
+    lines.append(dashboard_line)
     msg = "\n".join(lines).strip()
     if len(msg) > 3950:
-        msg = msg[:3920] + "\n\n..."
+        msg = msg[:3850] + f"\n\n...\n\n{dashboard_line}"
     return msg
 
 
@@ -415,7 +419,7 @@ def build_light_dashboard_html(incidents: list, recent_count: int, updated_at: s
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sport Infra Monitor Ukraine — Моніторинг спортивної інфраструктури</title>
+    <title>Monitoring of Sports Infrastructure Damage</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -432,7 +436,7 @@ def build_light_dashboard_html(incidents: list, recent_count: int, updated_at: s
                     Моніторинг новинних сайтів
                 </div>
                 <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mt-2">
-                    Sport Infra Monitor Ukraine
+                    Monitoring of Sports Infrastructure Damage
                 </h1>
                 <p class="text-sm text-slate-500 mt-0.5">
                     Відкритий реєстр зафіксованих пошкоджень і руйнувань спортивної інфраструктури
@@ -461,7 +465,7 @@ def build_light_dashboard_html(incidents: list, recent_count: int, updated_at: s
             <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
                 <div class="text-xs font-medium uppercase tracking-wider text-slate-500">Статус останньої перевірки</div>
                 <div class="text-base font-semibold text-emerald-700 mt-2">
-                    {"Знайдено інформацію про руйнування" if recent_count > 0 else "Нових пошкоджень не зафіксовано"}
+                    {"🚨 Знайдено інформацію про руйнування" if recent_count > 0 else "✅ Нових пошкоджень не зафіксовано"}
                 </div>
                 <div class="text-xs text-slate-500 mt-1">Автооновлення за розкладом</div>
             </div>
@@ -504,7 +508,7 @@ def build_light_dashboard_html(incidents: list, recent_count: int, updated_at: s
 
     <!-- Футер -->
     <footer class="bg-white border-t border-slate-200 py-5 text-center text-xs text-slate-500">
-        Sport Infra Monitor Ukraine · Світлий дашборд відкритого моніторингу
+        Monitoring of Sports Infrastructure Damage · Розроблено: Ярослав Ісаєв - комунікаційний менеджер ММС
     </footer>
 
     <script>

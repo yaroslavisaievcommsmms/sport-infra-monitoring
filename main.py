@@ -30,13 +30,30 @@ INCIDENTS_FILE = "incidents.json"
 KYIV_TZ = timezone(timedelta(hours=2))
 RECENT_WINDOW_HOURS = 48  # Сьогодні та вчора (останні 48 годин)
 
-# 2. Пошукові запити для Google News RSS
+# 2. Пошукові запити для Google News RSS (тільки новинні сайти через Google News)
 SEARCH_QUERIES = [
     'стадіон OR спорткомплекс OR басейн пошкоджено OR зруйновано OR обстріл',
     'спортзал OR "палац спорту" OR спортшкола пошкоджено OR зруйновано OR обстріл',
     'ДЮСШ OR арена OR "спортивний майданчик" пошкоджено OR зруйновано OR обстріл',
     'стадіон OR спорткомплекс OR басейн "внаслідок атаки" OR "ракетного обстрілу"',
     'спортшкола OR ДЮСШ OR арена "внаслідок атаки" OR "ракетного обстрілу"',
+    '"палац спорту" OR "локомотив" Харків пошкоджено OR зруйновано OR атака',
+]
+
+# Ключові слова для попередньої перевірки спортивної інфраструктури
+SPORT_KEYWORDS = [
+    "стадіон",
+    "спорткомплекс",
+    "спортивний комплекс",
+    "палац спорту",
+    "спортшкола",
+    "дюсьш",
+    "сдюшор",
+    "спортзал",
+    "басейн",
+    "арена",
+    "спортивний майданчик",
+    "локомотив",
 ]
 
 
@@ -85,6 +102,11 @@ def is_today_or_yesterday(published_str: str, hours: int = RECENT_WINDOW_HOURS) 
     return (now_utc - dt_utc) <= timedelta(hours=hours)
 
 
+def matches_sport_keywords(text: str) -> bool:
+    low = (text or "").lower()
+    return any(kw in low for kw in SPORT_KEYWORDS)
+
+
 def get_google_news() -> list:
     articles = []
     seen_links = set()
@@ -94,22 +116,28 @@ def get_google_news() -> list:
         rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=uk&gl=UA&ceid=UA:uk"
         feed = feedparser.parse(rss_url)
 
-        for entry in feed.entries[:10]:
+        for entry in feed.entries[:12]:
             link = getattr(entry, "link", "")
+            title = getattr(entry, "title", "Без заголовка")
             published_raw = getattr(entry, "published", "Дата не вказана")
 
-            if link and link not in seen_links:
-                seen_links.add(link)
-                source_title = ""
-                if hasattr(entry, "source") and getattr(entry, "source"):
-                    source_title = getattr(entry.source, "title", "") or ""
-                articles.append({
-                    "title": getattr(entry, "title", "Без заголовка"),
-                    "link": link,
-                    "published_kyiv": format_pub_date_kyiv(published_raw),
-                    "is_recent": is_today_or_yesterday(published_raw),
-                    "source": source_title or "Новинне джерело",
-                })
+            if not link or link in seen_links:
+                continue
+            if not matches_sport_keywords(title):
+                continue
+
+            seen_links.add(link)
+            source_title = ""
+            if hasattr(entry, "source") and getattr(entry, "source"):
+                source_title = getattr(entry.source, "title", "") or ""
+
+            articles.append({
+                "title": title,
+                "link": link,
+                "published_kyiv": format_pub_date_kyiv(published_raw),
+                "is_recent": is_today_or_yesterday(published_raw),
+                "source": source_title or "Новинне джерело",
+            })
     return articles
 
 
@@ -129,36 +157,59 @@ def _escape_html(text: str) -> str:
     )
 
 
-def analyze_new_incidents(articles: list, existing_incidents: list) -> list:
+def analyze_articles(articles: list, existing_incidents: list) -> dict:
+    """
+    Повертає словник:
+    {
+      "new_incidents": [...],          # повністю нові події, яких ще немає в базі
+      "extra_sources": [               # нові посилання на вже існуючі події в базі
+        {"match_facility": "...", "match_city": "...", "source_name": "...", "link": "..."}
+      ]
+    }
+    """
     if not articles:
-        return []
+        return {"new_incidents": [], "extra_sources": []}
 
-    compact_existing = [
-        {
+    compact_existing = []
+    for item in existing_incidents[-200:]:
+        compact_existing.append({
             "date": item.get("date", ""),
             "region_city": item.get("region_city", ""),
             "facility": item.get("facility", ""),
             "description": item.get("description", ""),
-        }
-        for item in existing_incidents[-200:]
-    ]
+            "sources": item.get("sources", [item.get("link", "")] if item.get("link") else []),
+        })
 
     prompt = f"""
-Ти аналітик, який моніторить руйнування та пошкодження спортивної інфраструктури в Україні внаслідок війни.
+Ти аналітик, який моніторить виключно руйнування та пошкодження СПОРТИВНОЇ ІНФРАСТРУКТУРИ в Україні внаслідок війни.
 Твоє завдання:
-1. Проаналізувати список новин з Google News.
-2. Залишити ТІЛЬКИ підтверджені випадки руйнування або пошкодження спортивних об'єктів (стадіони, спорткомплекси, басейни, ДЮСШ, спортзали, палаци спорту, спортивні арени, майданчики тощо).
-3. Звірити кожну подію зі списком УЖЕ ЗАФІКСОВАНИХ ПОДІЙ нижче. Якщо це той самий об'єкт і та сама або вже відома подія — НЕ включай її у результат! Повертай лише НОВІ події, яких ще немає у базі.
-4. Для кожної НОВОЇ події сформуй поля:
-   - "date": дата та час публікації новини (візьми з поля "Дата публікації")
-   - "region_city": область та населений пункт (наприклад: Харківська область, м. Харків)
-   - "facility": назва або тип спортивного об'єкта (без зірочок **)
-   - "description": короткий опис пошкоджень (1-2 речення, без зірочок **)
-   - "source_name": коротка назва медіа/джерела (наприклад: Суспільне, РБК-Україна, ДСНС)
-   - "link": точне посилання зі списку новин
-   - "is_recent": true або false (візьми точно зі значення "Свіжа новина (сьогодні/вчора)")
+1. Проаналізувати список новин і залишити ТІЛЬКИ підтверджені випадки руйнування або пошкодження спортивних об'єктів (стадіони, спорткомплекси, басейни, ДЮСШ, СДЮШОР, спортшколи, спортзали, палаци спорту, спортивні арени, майданчики). Музеї, університети, житлові будинки без підтвердженого пошкодження саме спортивного об'єкта — ІГНОРУЙ.
+2. Звір кожну спортивну подію зі списком УЖЕ ЗАФІКСОВАНИХ ПОДІЙ нижче:
+   - Якщо такий об'єкт і подія ВЖЕ є в базі (наприклад, Палац спорту «Локомотив» у Харкові вже є у списку), НЕ додавай її до "new_incidents". Якщо посилання немає у "sources" цієї події — додай його в "extra_sources".
+   - Якщо подія НОВА і ще не зафіксована у базі — додай її до "new_incidents".
 
-Поверни відповідь ВИКЛЮЧНО у форматі валідного JSON-масиву (без зайвого тексту до або після JSON). Якщо нових подій немає — поверни порожній масив: []
+Поверни відповідь ВИКЛЮЧНО у форматі валідного JSON-об'єкта без зайвого тексту до або після JSON:
+{{
+  "new_incidents": [
+    {{
+      "date": "дата та час публікації новини",
+      "region_city": "область та населений пункт",
+      "facility": "назва або тип спортивного об'єкта (без зірочок **)",
+      "description": "короткий опис пошкоджень (1-2 речення, без зірочок **)",
+      "source_name": "коротка назва медіа/джерела",
+      "link": "точне посилання зі списку новин",
+      "is_recent": true
+    }}
+  ],
+  "extra_sources": [
+    {{
+      "match_facility": "назва спортивного об'єкта з бази, до якого належить новина",
+      "match_city": "місто/область з бази",
+      "source_name": "коротка назва нового медіа/джерела",
+      "link": "точне нове посилання"
+    }}
+  ]
+}}
 
 ВЖЕ ЗАФІКСОВАНІ ПОДІЇ:
 {json.dumps(compact_existing, ensure_ascii=False)}
@@ -185,36 +236,85 @@ def analyze_new_incidents(articles: list, existing_incidents: list) -> list:
                 )
                 raw = _clean_json_text(response.text)
                 parsed = json.loads(raw)
-                if isinstance(parsed, list):
+                if isinstance(parsed, dict):
                     valid_new = []
-                    for entry in parsed:
+                    for entry in parsed.get("new_incidents", []):
                         if isinstance(entry, dict) and entry.get("facility") and entry.get("link"):
                             raw_recent = entry.get("is_recent", False)
                             is_rec = raw_recent is True or str(raw_recent).lower() == "true"
+                            link_val = str(entry.get("link", "")).strip()
+                            src_name = str(entry.get("source_name", "Джерело")).replace("*", "").strip()
                             valid_new.append({
                                 "date": str(entry.get("date", "Дата не вказана")).replace("*", "").strip(),
                                 "region_city": str(entry.get("region_city", "Не вказано")).replace("*", "").strip(),
                                 "facility": str(entry.get("facility", "Спортивний об'єкт")).replace("*", "").strip(),
                                 "description": str(entry.get("description", "")).replace("*", "").strip(),
-                                "source_name": str(entry.get("source_name", "Джерело")).replace("*", "").strip(),
-                                "link": str(entry.get("link", "")).strip(),
+                                "source_name": src_name,
+                                "link": link_val,
+                                "sources": [{"source_name": src_name, "link": link_val}] if link_val else [],
                                 "is_recent": is_rec,
                             })
-                    return valid_new
-                return []
+
+                    valid_extra = []
+                    for ex in parsed.get("extra_sources", []):
+                        if isinstance(ex, dict) and ex.get("link"):
+                            valid_extra.append({
+                                "match_facility": str(ex.get("match_facility", "")).replace("*", "").strip(),
+                                "match_city": str(ex.get("match_city", "")).replace("*", "").strip(),
+                                "source_name": str(ex.get("source_name", "Джерело")).replace("*", "").strip(),
+                                "link": str(ex.get("link", "")).strip(),
+                            })
+
+                    return {"new_incidents": valid_new, "extra_sources": valid_extra}
+                return {"new_incidents": [], "extra_sources": []}
             except Exception as e:
                 print(f"Помилка {model_name} (спроба {attempt + 1}/2): {e}")
                 if attempt == 0:
                     time.sleep(60)
         print(f"Модель {model_name} не відповідає, переходимо до наступної.\n")
 
-    print("Помилка: жодна модель не змогла повернути коректний список нових подій.")
-    return []
+    print("Помилка: жодна модель не змогла повернути коректний результат.")
+    return {"new_incidents": [], "extra_sources": []}
+
+
+def merge_extra_sources_into_db(existing_incidents: list, extra_sources: list) -> int:
+    """Дописує нові посилання на джерела до вже існуючих подій у базі. Повертає кількість доданих посилань."""
+    added_count = 0
+    for ex in extra_sources:
+        target_facility = ex.get("match_facility", "").lower()
+        target_city = ex.get("match_city", "").lower()
+        new_link = ex.get("link", "").strip()
+        new_src_name = ex.get("source_name", "Джерело").strip()
+        if not new_link:
+            continue
+
+        for inc in existing_incidents:
+            inc_fac = str(inc.get("facility", "")).lower()
+            inc_city = str(inc.get("region_city", "")).lower()
+            fac_match = target_facility and (target_facility in inc_fac or inc_fac in target_facility)
+            city_match = not target_city or (target_city in inc_city or inc_city in target_city)
+
+            if fac_match and city_match:
+                sources_list = inc.get("sources")
+                if not isinstance(sources_list, list):
+                    sources_list = []
+                    if inc.get("link"):
+                        sources_list.append({
+                            "source_name": inc.get("source_name", "Джерело"),
+                            "link": inc.get("link"),
+                        })
+                existing_links = {s.get("link") for s in sources_list if isinstance(s, dict)}
+                if new_link not in existing_links:
+                    sources_list.append({"source_name": new_src_name, "link": new_link})
+                    inc["sources"] = sources_list
+                    added_count += 1
+                break
+    return added_count
 
 
 def format_telegram_message(recent_incidents: list) -> str:
     if not recent_incidents:
-        return "Нових руйнувань не зафіксовано"
+        return "Нових пошкоджень не зафіксовано"
 
     lines = ["Знайдено інформацію про руйнування", ""]
     for idx, inc in enumerate(recent_incidents, 1):
@@ -242,7 +342,7 @@ def format_telegram_message(recent_incidents: list) -> str:
 
 def format_site_report(recent_incidents: list, updated_at: str) -> str:
     if not recent_incidents:
-        return f"Станом на {updated_at}: Нових руйнувань не зафіксовано."
+        return f"Станом на {updated_at}: Нових пошкоджень не зафіксовано."
 
     blocks = [f"Станом на {updated_at}: Знайдено інформацію про руйнування\n"]
     for idx, inc in enumerate(recent_incidents, 1):
@@ -311,22 +411,37 @@ if __name__ == "__main__":
     existing_incidents = load_incidents(INCIDENTS_FILE)
     print(f"У базі вже зафіксовано подій: {len(existing_incidents)}")
 
-    print("\nЗбір новин з Google News...")
+    print("\nЗбір новин з Google News за ключовими словами...")
     google_news = get_google_news()
-    print(f"Знайдено новин у Google: {len(google_news)}")
+    print(f"Відібрано новин за ключовими словами: {len(google_news)}")
 
-    print("\nАналіз та перевірка на дублікати через Gemini AI...")
-    all_new_incidents = analyze_new_incidents(google_news, existing_incidents)
-    print(f"Виявлено нових подій для запису в базу: {len(all_new_incidents)}")
+    print("\nАналіз через Gemini AI та звірка з базою...")
+    analysis = analyze_articles(google_news, existing_incidents)
+    all_new_incidents = analysis.get("new_incidents", [])
+    extra_sources = analysis.get("extra_sources", [])
+
+    added_links_count = merge_extra_sources_into_db(existing_incidents, extra_sources)
+    db_changed = False
 
     if all_new_incidents:
-        updated_incidents = existing_incidents + all_new_incidents
-        save_incidents(INCIDENTS_FILE, updated_incidents)
-        print(f"Оновлено {INCIDENTS_FILE}. Всього подій у базі: {len(updated_incidents)}")
+        existing_incidents.extend(all_new_incidents)
+        db_changed = True
 
-    # У звіт та Telegram беремо тільки ті нові події, що за сьогодні або вчора
+    if added_links_count > 0:
+        db_changed = True
+
+    if db_changed:
+        save_incidents(INCIDENTS_FILE, existing_incidents)
+        print(
+            f"Оновлено {INCIDENTS_FILE}: нових подій +{len(all_new_incidents)}, "
+            f"нових посилань до існуючих подій +{added_links_count}. Всього подій: {len(existing_incidents)}"
+        )
+    else:
+        print("Змін для запису в базу немає.")
+
+    # У Telegram та звіт беремо лише повністю НОВІ події за сьогодні або вчора
     recent_new_incidents = [item for item in all_new_incidents if item.get("is_recent")]
-    print(f"Свіжих подій (сьогодні/вчора) для звіту та Telegram: {len(recent_new_incidents)}")
+    print(f"Нових подій (сьогодні/вчора) для сповіщення: {len(recent_new_incidents)}")
 
     kyiv_now = datetime.now(KYIV_TZ)
     current_time = kyiv_now.strftime("%d.%m.%Y о %H:%M")

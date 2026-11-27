@@ -2,11 +2,11 @@ name: Daily Sports Infrastructure Damage Monitoring
 
 on:
   schedule:
-    - cron: '0 5 * * *'
+    - cron: '0 4,7,8,9,10,13,16 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write # Дозвіл на збереження файлів у репозиторій
+  contents: write
 
 jobs:
   run-monitoring:
@@ -30,13 +30,11 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: python main.py
 
       - name: Commit and Push changes
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          git add index.html
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Оновлено звіт та HTML-лендинг" && git push)
+          git add incidents.json index.html
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Оновлено базу подій та звіт" && git push)

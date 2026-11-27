@@ -1,14 +1,12 @@
 import os
+import re
 import time
 import json
-import asyncio
 import urllib.parse
 import urllib.request
 import feedparser
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from google import genai
-from telethon import TelegramClient
-from telethon.sessions import StringSession
 
 # 1. Налаштування Gemini API
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
@@ -27,65 +25,36 @@ MODELS = [
     "gemini-2.5-flash-lite",
 ]
 
+INCIDENTS_FILE = "incidents.json"
+
 # 2. Пошукові запити для Google News RSS
 SEARCH_QUERIES = [
     'стадіон OR спорткомплекс OR басейн пошкоджено OR зруйновано OR обстріл',
     'спортзал OR "палац спорту" OR спортшкола пошкоджено OR зруйновано OR обстріл',
     'ДЮСШ OR арена OR "спортивний майданчик" пошкоджено OR зруйновано OR обстріл',
     'стадіон OR спорткомплекс OR басейн "внаслідок атаки" OR "ракетного обстрілу"',
-    'спортшкола OR ДЮСШ OR арена "внаслідок атаки" OR "ракетного обстрілу"'
-]
-
-# 3. Тільки регіональні канали Суспільного медіа та місцеві обласні ОВА/ОДА (без дублів)
-TG_CHANNELS = [
-    # Регіональне Суспільне
-    "suspilne_chernihiv",
-    "suspilnesumy",
-    "suspilnekharkiv",
-    "suspilnednipro",
-    "suspilnezaporizhzhya",
-    # Обласні ОВА / ОДА
-    "DonetskaODA",
-    "ODA_RV",
-    "Sumy_news_ODA",
-    "cherkaskaODA",
-    "chernigivskaODA",
-    "chernivetskaODA",
-    "dnipropetrovskaODA",
-    "khersonskaODA",
-    "khmelnytskaODA",
-    "kirovogradskaODA",
-    "kozytskyy_maksym_official",
-    "kyivoda",
-    "luhanskaVTSA",
-    "mykolaivskaODA",
-    "odeskaODA",
-    "onyshchuksvitlana",
-    "poltavskaOVA",
-    "ternopilskaODA",
-    "vinnytskaODA",
-    "volynskaODA",
-    "zakarpatskaODA",
-    "zhytomyrskaODA",
-    "zoda_gov_ua",
-]
-
-KEYWORDS = [
-    "стадіон",
-    "спорт",
-    "дюсш",
-    "сдюшор",
-    "басейн",
-    "арена",
-    "комплекс",
-    "майданчик",
-    "спортзал",
-    "палац спорту",
-    "спорткомплекс",
+    'спортшкола OR ДЮСШ OR арена "внаслідок атаки" OR "ракетного обстрілу"',
 ]
 
 
-def get_google_news():
+def load_incidents(filepath: str = INCIDENTS_FILE) -> list:
+    if not os.path.exists(filepath):
+        return []
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except Exception as e:
+        print(f"Помилка читання {filepath}: {e}")
+        return []
+
+
+def save_incidents(filepath: str, incidents: list) -> None:
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(incidents, f, ensure_ascii=False, indent=2)
+
+
+def get_google_news() -> list:
     articles = []
     seen_links = set()
 
@@ -95,103 +64,80 @@ def get_google_news():
         feed = feedparser.parse(rss_url)
 
         for entry in feed.entries[:10]:
-            if entry.link not in seen_links:
-                seen_links.add(entry.link)
+            link = getattr(entry, "link", "")
+            if link and link not in seen_links:
+                seen_links.add(link)
+                source_title = ""
+                if hasattr(entry, "source") and getattr(entry, "source"):
+                    source_title = getattr(entry.source, "title", "") or ""
                 articles.append({
-                    "source": "Google News",
-                    "title": entry.title,
-                    "link": entry.link,
-                    "published": getattr(entry, "published", "Дата невідома"),
+                    "title": getattr(entry, "title", "Без заголовка"),
+                    "link": link,
+                    "published": getattr(entry, "published", "Дата не вказана"),
+                    "source": source_title or "Новинне джерело",
                 })
     return articles
 
 
-async def get_telegram_posts_async():
-    api_id = os.environ.get("TELEGRAM_API_ID")
-    api_hash = os.environ.get("TELEGRAM_API_HASH")
-    session_str = os.environ.get("TELEGRAM_SESSION", "")
-
-    if not api_id or not api_hash:
-        print("УВАГА: TELEGRAM_API_ID або TELEGRAM_API_HASH не задані в Secrets.")
-        return [], "не виконано (відсутні ключі API)"
-
-    posts = []
-    tg_client = TelegramClient(StringSession(session_str), int(api_id), api_hash)
-
-    try:
-        await tg_client.connect()
-        if not await tg_client.is_user_authorized():
-            print("УВАГА: Сесія Telegram не авторизована (потрібен TELEGRAM_SESSION).")
-            await tg_client.disconnect()
-            return [], "не виконано (потрібна авторизація сесії)"
-
-        print("Телеграм-клієнт підключено та авторизовано!")
-        now = datetime.now(timezone.utc)
-        yesterday = now - timedelta(days=1)
-        checked_channels = 0
-
-        for channel in TG_CHANNELS:
-            try:
-                checked_channels += 1
-                async for message in tg_client.iter_messages(channel, limit=20):
-                    if message.date and message.date > yesterday and message.text:
-                        text_lower = message.text.lower()
-                        if any(kw in text_lower for kw in KEYWORDS):
-                            clean_preview = message.text.replace("\n", " ").strip()[:160]
-                            posts.append({
-                                "source": f"Telegram (@{channel})",
-                                "title": f"Telegram [@{channel}]: {clean_preview}",
-                                "link": f"https://t.me/{channel}/{message.id}",
-                                "published": message.date.strftime("%d.%m.%Y %H:%M"),
-                            })
-            except Exception as ch_err:
-                print(f"Помилка зчитування каналу @{channel}: {ch_err}")
-
-        await tg_client.disconnect()
-        print(f"Перевірено каналів: {checked_channels}/{len(TG_CHANNELS)}, знайдено постів за ключовими словами: {len(posts)}")
-        return posts, f"перевірено каналів: {checked_channels}, знайдено збігів за ключовими словами: {len(posts)}"
-
-    except Exception as e:
-        print(f"Помилка роботи Telethon: {e}")
-        return [], f"помилка підключення ({e})"
+def _clean_json_text(raw_text: str) -> str:
+    cleaned = (raw_text or "").strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+    return cleaned.strip()
 
 
-def analyze_with_gemini(articles, tg_status):
+def _escape_html(text: str) -> str:
+    return (
+        (text or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def analyze_new_incidents(articles: list, existing_incidents: list) -> list:
     if not articles:
-        return (
-            "За останню добу підтверджених новин про руйнування спортивної інфраструктури не знайдено.\n"
-            "пошук по телеграму - руйнувань не зафіксовано"
-        )
+        return []
+
+    compact_existing = [
+        {
+            "date": item.get("date", ""),
+            "region_city": item.get("region_city", ""),
+            "facility": item.get("facility", ""),
+            "description": item.get("description", ""),
+        }
+        for item in existing_incidents[-150:]
+    ]
 
     prompt = f"""
-    Ти аналітик, який збирає інформацію про пошкодження спортивної інфраструктури в Україні внаслідок війни.
-    Нижче наведено список матеріалів з Google News та Telegram-каналів (регіональне Суспільне та обласні ОВА/ОДА).
-    Твоє завдання:
-    1. Відбракувати новини/пости, які НЕ стосуються руйнувань або пошкоджень спортивних об'єктів (стадіони, спорткомплекси, басейни, ДЮСШ, спортзали, палаци спорту, спортмайданчики тощо).
-    2. Прибрати дублікати однієї й тієї ж події.
-    3. Для кожної підтвердженої події вкажи:
-       - Дата/час (якщо є)
-       - Область та населений пункт
-       - Назва або тип спортивного об'єкта
-       - Короткий опис пошкоджень
-       - Посилання на джерело
+Ти аналітик, який моніторить руйнування та пошкодження спортивної інфраструктури в Україні внаслідок війни.
+Твоє завдання:
+1. Проаналізувати список новин з Google News.
+2. Залишити ТІЛЬКИ підтверджені випадки руйнування або пошкодження спортивних об'єктів (стадіони, спорткомплекси, басейни, ДЮСШ, спортзали, палаци спорту, спортивні арени, майданчики тощо).
+3. Звірити кожну подію зі списком УЖЕ ЗАФІКСОВАНИХ ПОДІЙ нижче. Якщо це той самий об'єкт і та сама або вже відома подія (навіть якщо новина свіжіша або з іншого медіа) — НЕ включай її у результат! Повертай лише НОВІ події, яких ще немає у базі.
+4. Для кожної НОВОЇ події сформуй поля:
+   - "date": дата та час публікації новини (візьми з поля "Дата публікації" або з тексту новини; якщо часу немає — вкажи дату; якщо взагалі немає — "Дата не вказана")
+   - "region_city": область та населений пункт (наприклад: Харківська область, м. Харків)
+   - "facility": назва або тип спортивного об'єкта (без зірочок **)
+   - "description": короткий опис пошкоджень (1-2 речення, без зірочок **)
+   - "source_name": коротка назва медіа/джерела (наприклад: Суспільне, РБК-Україна, ДСНС)
+   - "link": точне посилання зі списку новин
 
-    Правила завершення звіту:
-    - Якщо підтверджених подій немає, напиши чітко:
-      "За добу підтверджених новин про руйнування спортивної інфраструктури не знайдено."
-    - Обов'язково додай наприкінці окремий рядок щодо Telegram:
-      Якщо серед підтверджених подій немає даних із Telegram або постів у Telegram не було — напиши точно:
-      "пошук по телеграму - руйнувань не зафіксовано"
-      Якщо з Telegram є підтверджені події — напиши:
-      "пошук по телеграму - зафіксовано ймовірні згадки (перевір у звіті вище)".
+Поверни відповідь ВИКЛЮЧНО у форматі валідного JSON-масиву (без зайвого тексту до або після JSON). Якщо нових подій немає — поверни порожній масив: []
 
-    Технічний статус збору з Telegram: {tg_status}.
+ВЖЕ ЗАФІКСОВАНІ ПОДІЇ:
+{json.dumps(compact_existing, ensure_ascii=False)}
 
-    Ось список матеріалів:
-    """
+НОВИНИ ДЛЯ АНАЛІЗУ:
+"""
 
     for idx, item in enumerate(articles, 1):
-        prompt += f"\n{idx}. [{item['source']}] {item['title']}\n   Посилання: {item['link']}\n"
+        prompt += (
+            f"\n{idx}. Заголовок: {item['title']}\n"
+            f"   Дата публікації: {item['published']}\n"
+            f"   Джерело: {item['source']}\n"
+            f"   Посилання: {item['link']}\n"
+        )
 
     for model_name in MODELS:
         print(f"Пробуємо модель: {model_name}...")
@@ -201,23 +147,77 @@ def analyze_with_gemini(articles, tg_status):
                     model=model_name,
                     contents=prompt,
                 )
-                text = (response.text or "").strip()
-                if "пошук по телеграму" not in text.lower():
-                    text += "\nпошук по телеграму - руйнувань не зафіксовано"
-                return text
+                raw = _clean_json_text(response.text)
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    valid_new = []
+                    for entry in parsed:
+                        if isinstance(entry, dict) and entry.get("facility") and entry.get("link"):
+                            valid_new.append({
+                                "date": str(entry.get("date", "Дата не вказана")).replace("*", "").strip(),
+                                "region_city": str(entry.get("region_city", "Не вказано")).replace("*", "").strip(),
+                                "facility": str(entry.get("facility", "Спортивний об'єкт")).replace("*", "").strip(),
+                                "description": str(entry.get("description", "")).replace("*", "").strip(),
+                                "source_name": str(entry.get("source_name", "Джерело")).replace("*", "").strip(),
+                                "link": str(entry.get("link", "")).strip(),
+                            })
+                    return valid_new
+                return []
             except Exception as e:
                 print(f"Помилка {model_name} (спроба {attempt + 1}/2): {e}")
                 if attempt == 0:
                     time.sleep(60)
         print(f"Модель {model_name} не відповідає, переходимо до наступної.\n")
 
-    return (
-        "Помилка: Жодна з моделей не змогла згенерувати звіт через перевантаження серверів.\n"
-        "пошук по телеграму - руйнувань не зафіксовано"
-    )
+    print("Помилка: жодна модель не змогла повернути коректний список нових подій.")
+    return []
 
 
-def send_telegram_notification(report_text):
+def format_telegram_message(new_incidents: list) -> str:
+    if not new_incidents:
+        return "Нових руйнувань не зафіксовано"
+
+    lines = ["Знайдено інформацію про руйнування", ""]
+    for idx, inc in enumerate(new_incidents, 1):
+        date_str = _escape_html(inc.get("date", "Дата не вказана"))
+        place_str = _escape_html(inc.get("region_city", "Не вказано"))
+        facility_str = _escape_html(inc.get("facility", "Спортивний об'єкт"))
+        desc_str = _escape_html(inc.get("description", ""))
+        source_name = _escape_html(inc.get("source_name", "Джерело"))
+        link = _escape_html(inc.get("link", ""))
+
+        lines.append(f"{idx}. {place_str}")
+        lines.append(f"Об'єкт: {facility_str}")
+        lines.append(f"Дата та час публікації: {date_str}")
+        if desc_str:
+            lines.append(f"Опис: {desc_str}")
+        if link:
+            lines.append(f'Джерело: <a href="{link}">{source_name}</a>')
+        lines.append("")
+
+    msg = "\n".join(lines).strip()
+    if len(msg) > 3950:
+        msg = msg[:3920] + "\n\n..."
+    return msg
+
+
+def format_site_report(new_incidents: list, updated_at: str) -> str:
+    if not new_incidents:
+        return f"Станом на {updated_at}: Нових руйнувань не зафіксовано."
+
+    blocks = [f"Станом на {updated_at}: Знайдено інформацію про руйнування\n"]
+    for idx, inc in enumerate(new_incidents, 1):
+        blocks.append(
+            f"{idx}. {inc['region_city']}\n"
+            f"   Об'єкт: {inc['facility']}\n"
+            f"   Дата та час публікації: {inc['date']}\n"
+            f"   Опис: {inc['description']}\n"
+            f"   Джерело: [{inc['source_name']}]({inc['link']})\n"
+        )
+    return "\n".join(blocks).strip()
+
+
+def send_telegram_notification(message_html: str) -> None:
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
 
@@ -225,15 +225,12 @@ def send_telegram_notification(report_text):
         print("Пропуск відправки: Секрети TELEGRAM_BOT_TOKEN або TELEGRAM_CHAT_ID відсутні.")
         return
 
-    site_url = "https://yaroslavisaievcommsms.github.io/sport-infra-monitoring/"
-    safe_text = report_text[:3800] + "\n\n..." if len(report_text) > 3800 else report_text
-    message = f"🚨 **Оперативний звіт моніторингу спортивної інфраструктури**\n\n{safe_text}\n\n🌐 **Повний звіт на сайті:** {site_url}"
-
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": message,
-        "disable_web_page_preview": False,
+        "text": message_html,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
     }
 
     req = urllib.request.Request(
@@ -245,7 +242,7 @@ def send_telegram_notification(report_text):
     try:
         with urllib.request.urlopen(req) as response:
             if response.status == 200:
-                print("Успішно відправлено звіт у Telegram!")
+                print("Успішно відправлено сповіщення у Telegram!")
             else:
                 print(f"Не вдалося надіслати в Telegram (Код: {response.status})")
     except Exception as e:
@@ -253,21 +250,25 @@ def send_telegram_notification(report_text):
 
 
 if __name__ == "__main__":
-    print("Збір новин з Google News...")
+    print("Завантаження бази зафіксованих подій...")
+    existing_incidents = load_incidents(INCIDENTS_FILE)
+    print(f"У базі вже зафіксовано подій: {len(existing_incidents)}")
+
+    print("\nЗбір новин з Google News...")
     google_news = get_google_news()
     print(f"Знайдено новин у Google: {len(google_news)}")
 
-    print("\nЗбір дописів з Telegram-каналів (Суспільне + ОВА/ОДА)...")
-    tg_posts, tg_status = asyncio.run(get_telegram_posts_async())
-    print(f"Знайдено відповідних постів у Telegram: {len(tg_posts)} | Статус: {tg_status}")
+    print("\nАналіз та перевірка на дублікати через Gemini AI...")
+    new_incidents = analyze_new_incidents(google_news, existing_incidents)
+    print(f"Виявлено нових подій: {len(new_incidents)}")
 
-    all_sources = google_news + tg_posts
-    print(f"\nУсього матеріалів для аналізу: {len(all_sources)}")
-
-    print("\nАналіз за допомогою Gemini AI...")
-    report = analyze_with_gemini(all_sources, tg_status)
+    if new_incidents:
+        updated_incidents = existing_incidents + new_incidents
+        save_incidents(INCIDENTS_FILE, updated_incidents)
+        print(f"Оновлено {INCIDENTS_FILE}. Всього подій у базі: {len(updated_incidents)}")
 
     current_time = datetime.now().strftime("%d.%m.%Y о %H:%M")
+    site_report_text = format_site_report(new_incidents, current_time)
 
     html_content = f"""<!DOCTYPE html>
 <html lang="uk">
@@ -286,14 +287,14 @@ if __name__ == "__main__":
         <div class="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <span class="bg-red-500/10 text-red-400 text-xs font-semibold px-3 py-1 rounded-full border border-red-500/20">
-                    Дані відкритого моніторингу (Web + Telegram: Суспільне та ОВА)
+                    Дані відкритого моніторингу (Новинні сайти)
                 </span>
                 <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white mt-2">
-                    ⚽ Sport Infra Monitor Ukraine
+                    Sport Infra Monitor Ukraine
                 </h1>
             </div>
             <div class="text-sm text-slate-400 bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-700/50">
-                🕒 Оновлено: <span class="text-white font-medium">{current_time}</span>
+                Оновлено: <span class="text-white font-medium">{current_time}</span>
             </div>
         </div>
     </header>
@@ -301,17 +302,17 @@ if __name__ == "__main__":
     <main class="flex-1 max-w-5xl w-full mx-auto px-6 py-10">
         <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 sm:p-8 shadow-xl backdrop-blur-md">
             <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                📊 Оперативний звіт подій
+                Оперативний звіт подій
             </h2>
             
             <div class="prose prose-invert max-w-none text-slate-300 leading-relaxed whitespace-pre-wrap">
-{report}
+{_escape_html(site_report_text)}
             </div>
         </div>
     </main>
 
     <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
-        Система автоматичного щоденного моніторингу наслідків війни для спортивної галузі України.
+        Система автоматичного моніторингу наслідків війни для спортивної галузі України.
     </footer>
 </body>
 </html>
@@ -322,5 +323,6 @@ if __name__ == "__main__":
 
     print("\nHTML-лендинг згенеровано у файл index.html!")
 
+    tg_message = format_telegram_message(new_incidents)
     print("\nВідправка сповіщення у Telegram-канал...")
-    send_telegram_notification(report)
+    send_telegram_notification(tg_message)

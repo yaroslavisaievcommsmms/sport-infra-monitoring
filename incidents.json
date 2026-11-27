@@ -194,6 +194,10 @@
       {
         "source_name": "sport.d.ua",
         "link": "https://news.google.com/rss/articles/CBMihwFBVV95cUxPWUV3ZHFkTFhoVHhDZXlCRE9RZmREcTFVMG9kNnREUTZrVFRHTzdoQTQ5MXBlR1ROanJnRUtzT0RlTHhOb0tjaFFISWh4YjdWbUd1YTl4ek1rNldLRDdCLXQyNTlQZEdGMThEMV9DbXhqWkk2VUd6VWRMcFlIQWpQMERBalRsVGc?oc=5"
+      },
+      {
+        "source_name": "Delo.ua",
+        "link": "https://news.google.com/rss/articles/CBMisgFBVV95cUxPQWFWa2dWNzhnNzh2UTlockpidmU3X1JMZGxyRXhyWjR3LXcyNU1jS0N0eWFoYVJURTVLY20tSUduVkxDNHNBTDhRTUpZdmRpYVN5SzBIMmNzT1Q2UVFjX21BWkxUcEgzNWM4LWo5X1VoRFEzWkNmLWdZamJlcTl1ai1VNE01Qlo4NjVmUXRaN2hCZO5JMmFSSXJ6WXlhX3c3N3BPWlZDVXUtVjRkeG5Yemh3?oc=5"
       }
     ]
   },
@@ -219,7 +223,17 @@
     "facility": "спортивний клуб «Метеор»",
     "description": "Постраждав спортивний клуб «Метеор» у Дніпрі внаслідок ворожої атаки.",
     "source_name": "Gorsovet",
-    "link": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQTElveERrbk1rNDktVmtqOU4tZjcxWGl6bURwejFsMzZDOTdTQ0pabmY5X1dnVk9nQVZLYW9XTkpuRDExNGhOSnNIeXdMaHJBUkZHMkVTMnQtdGo0MDVrbktqektTMXBCcDRmc201R3BMa2tRMi1ZeFNhWjFsMGxUREdTdGRqYmdzaGVPdHBjU3M0R1k?oc=5"
+    "link": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQTElveERrbk1rNDktVmtqOU4tZjcxWGl6bURwejFsMzZDOTdTQ0pabmY5X1dnVk9nQVZLYW9XTkpuRDExNGhOSnNIeXdMaHJBUkZHMkVTMnQtdGo0MDVrbktqektTMXBCcDRmc201R3BMa2tRMi1ZeFNhWjFsMGxUREdTdGRqYmdzaGVPdHBjU3M0R1k?oc=5",
+    "sources": [
+      {
+        "source_name": "Gorsovet",
+        "link": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQTElveERrbk1rNDktVmtqOU4tZjcxWGl6bURwejFsMzZDOTdTQ0pabmY5X1dnVk9nQVZLYW9XTkpuRDExNGhOSnNIeXdMaHJBUkZHMkVTMnQtdGo0MDVrbktqektTMXBCcDRmc201R3BMa2tRMi1ZeFNhWjFsMGxUREdTdGRqYmdzaGVPdHBjU3M0R1k?oc=5"
+      },
+      {
+        "source_name": "Суспільне | Новини",
+        "link": "https://news.google.com/rss/articles/CBMizgFBVV95cUxQRHduMnIzMTdYOEZmZXp6QnVVdkdqdkFtaXBreElwUXpGd25SeTR1NGUxb3BzSkdvME43ekdFekw4bXdRblZUX0hjS2hId0h1TVZoVUlVUmJOUlczZHRPdURHa25PdldpNFRpNWpTaW1CSUNDbXFwVDBkenVoYVR0bjRBWnB2anhBZ2t1Nl95eTRWUklMNEpSdU0xakZLWHJnZ1FUd3NNbkl2czMxeVlwcVItaG14RldFeXFWMVM2V0V5Tl9RczlxdlVnY1ZtUdIB0wFBVV95cUxOWUJGb2NvV0Fpdm1tTnNQaHJBWUFvUXZEY2R1LWNOZjFNLTJKRUhUS1gwR0VSWGNuSzdOejhzU2V1UHNqRmpsb0xPb3NFUTJ0YjFTd3A2YTNZQXZYbTJhSHZsS0x3VjQ0b295Q0dBYjZLTGdHS0w1bEhTN2R0MHhGQjBKVFJoUG9DY1Y2VXYyME8zc0J6TC03eTFSYTEtQld4OTlKVXR6dEEzZ2FwVzdLb0FDdmliUm5lRWJDTC1lbkNaMVFsczVjbzJOV09lVG42WUVz?oc=5"
+      }
+    ]
   },
   {
     "date": "Thu, 10 Sep 2026 07:00:00 GMT",

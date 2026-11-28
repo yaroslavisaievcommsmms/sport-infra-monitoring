@@ -54,6 +54,10 @@
       {
         "source_name": "NV Спорт",
         "link": "https://news.google.com/rss/articles/CBMixAFBVV95cUxPQ1JuSEo2VjVkYUhSUWZNamxNWW14VXBZX1ZsWV93clpBaFhTbzE5bTFUcWpuVWxVUVRybFluYVJYSERJZ2d3ZlpOWHZaUFNSVUhFdEkyejJVR2tVTWJXb1JZZU0yaFVxOERHWEkwZGt6OUUydXZBTGx1VEJhY0FaeWM0NHpoZ251OGMwUmp0YmxpQVVSR2JBOGZxeXRwNG9BN25GUTZCeFBDRjZRRzJwRTh4aHF1NlYyNVZleDcxbzg3Rk1j0gG6AUFVX3lxTFB6VG9zcTcwVDdxR3RHN21JZWJjS3RidUEyVVl4WmdLQzV2YTJ3NG0xamtycFRzSnZwZkVFSGZXaXJCZ19PTzBYblRSZW53VTNDVWMxemtpTkl3amJwbXRpdlZxWDVySTBhQ1otakF5MTdkcV9aeW5GY0NTZHdQempiVlZvNW9PTGRsQlJTQ1dJY0RfeDZaUXJGZ2ZBbVN0VVZrenhIUVotWDJqTW85NjlBU3pLZG1OczVGQQ?oc=5"
+      },
+      {
+        "source_name": "Харків Тудей",
+        "link": "https://news.google.com/rss/articles/CBMigwFBVV95cUxNclhlazIwdzQwMHVaWElfakEzeGNyM0htdFdtcGFsUU1qS1pQdUM4NFU3MnNCUjd4d0YySWt0MUpGTlJXLVhjbEVFQy1qWGFGcTdVQWtOZTBjU0FfUkwweVNJWmpZNlNsQ1FXc0xuTXRoaHZhZUxERHhhRTliZ3ZiVm43RdIBjgFBVV95cUxQX1BNeF84TFFobHZndTN5aWc4Znl0Q1BPZkUyOHBqYWVvRGpMWERHd0pMX2ZMX0UzZE1vLW5lVGNHZWc4S3BtUVdXaXJCTUdoMjZsdFFFbTdFSFBUbmNOaGNEQXRhHl5b3VHdENqU2hXeGx1eEVvSWRLTHJzYXFRTHJXMWhMbWtCXzhGTVpB?oc=5"
       }
     ]
   },
@@ -268,5 +272,20 @@
     "source_name": "LB.ua",
     "link": "https://news.google.com/rss/articles/CBMieEFVX3lxTE1TRkNWaW5xVV9wQ0ZHTXEzUmE1djBXYzZKZkU0RXhFeTQtMzF0dEYxWFdDQnlTRm50dVpZNnBPUHg3S1Rud2FrY0pwdWlwSjVjYnVUYnFBZ3pJcmV0ZXNzdEpkOGROQWRCSUZvMk1kX05NUEFHM3lvdw?oc=5",
     "is_recent": true
+  },
+  {
+    "date": "Tue, 27 Oct 2026 09:00:00 GMT",
+    "region_city": "Дніпропетровська область, м. Дніпро",
+    "facility": "стадіон місцевої школи",
+    "description": "Внаслідок обстрілу РФ пошкоджено стадіон місцевої школи у Дніпрі.",
+    "source_name": "УП. Життя",
+    "link": "https://news.google.com/rss/articles/CBMimgFBVV95cUxQNGVmbkFzNUd5RzctdmNpRjZZZjZ6bFlFQUlGRjVpZkNMbmNwNnV6Zl9md0w3aE5YS3JiV1BEWVRwZWVJaHBxVjg0MjQwVkd6RFpTZGxiVnN0YU5QZHNGN1dES3QzRnpyWDhreUtBOWFSSWdVMFJrUHRKNzRaNnJGUUpPY3B1dEF5d0JkRm5tbXRCcmhPa2w2YXpR0gGmAUFVX3lxTFBoRm9lelZsZFprRU1oRFlodGNwS19Pb01SRG1uVlMyYW54NW5KM2FOMXAxR1p0aUk2ejE0ejhyUDI4Z0dqbE9tdlVPWHVXOEV2QzNfeWtJNnVjTUJuMlRPa1hXbHNYSVljX25Xa2pjZC1YelNjMThPQjVUNm93Vld5NHhuLWs0TTduYlplRGlGeEwwR2JQb1dYMF81ZUdYWllGMWt2VHc?oc=5",
+    "sources": [
+      {
+        "source_name": "УП. Життя",
+        "link": "https://news.google.com/rss/articles/CBMimgFBVV95cUxQNGVmbkFzNUd5RzctdmNpRjZZZjZ6bFlFQUlGRjVpZkNMbmNwNnV6Zl9md0w3aE5YS3JiV1BEWVRwZWVJaHBxVjg0MjQwVkd6RFpTZGxiVnN0YU5QZHNGN1dES3QzRnpyWDhreUtBOWFSSWdVMFJrUHRKNzRaNnJGUUpPY3B1dEF5d0JkRm5tbXRCcmhPa2w2YXpR0gGmAUFVX3lxTFBoRm9lelZsZFprRU1oRFlodGNwS19Pb01SRG1uVlMyYW54NW5KM2FOMXAxR1p0aUk2ejE0ejhyUDI4Z0dqbE9tdlVPWHVXOEV2QzNfeWtJNnVjTUJuMlRPa1hXbHNYSVljX25Xa2pjZC1YelNjMThPQjVUNm93Vld5NHhuLWs0TTduYlplRGlGeEwwR2JQb1dYMF81ZUdYWllGMWt2VHc?oc=5"
+      }
+    ],
+    "is_recent": false
   }
 ]
